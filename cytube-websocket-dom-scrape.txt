@@ -1,0 +1,1421 @@
+~ $ curl -s https://cytu.be/js/ui.js | grep '$(' | head -50
+$(window).on('focus', CyTube.ui.onPageFocus).on('blur', CyTube.ui.onPageBlur);
+$(".modal").on('focus', CyTube.ui.onPageFocus);
+$("#togglemotd").on('click', function () {
+    var hidden = $("#motd")[0].style.display === "none";
+    $("#motd").toggle();
+        $("#togglemotd").find(".glyphicon-plus")
+        $("#togglemotd").find(".glyphicon-minus")
+$("#modflair").on('click', function () {
+    var m = $("#modflair");
+    $("#us-modflair").prop("checked", USEROPTS.modhat);
+$("#usercount").on('mouseenter', function (ev) {
+    var popup = $("<div/>")
+        .appendTo($("#usercount"));
+$("#usercount").on('mousemove', function (ev) {
+    var popup = $("#usercount").find(".profile-box");
+$("#usercount").on('mouseleave', function () {
+    $("#usercount").find(".profile-box").remove();
+$("#messagebuffer").on('scroll', function (ev) {
+    var m = $("#messagebuffer");
+        $("#newmessages-indicator").remove();
+$("#guestname").on('keydown', function (ev) {
+            name: $("#guestname").val()
+$("#chatline").on('keydown', function(ev) {
+        var msg = $("#chatline").val();
+            CHATHIST.push($("#chatline").val());
+            $("#chatline").val("");
+            CHATHIST.push($("#chatline").val());
+            $("#chatline").val(CHATHIST[CHATHISTIDX]);
+            $("#chatline").val(CHATHIST[CHATHISTIDX]);
+$("#newpollbtn").on('click', showPollMenu);
+$("#library_search").on('click', function() {
+        $("#searchcontrol .alert").remove();
+        al.find(".alert").insertAfter($("#library_query").parent());
+        query: $("#library_query").val().toLowerCase()
+$("#library_query").on('keydown', function(ev) {
+            $("#searchcontrol .alert").remove();
+            al.find(".alert").insertAfter($("#library_query").parent());
+            query: $("#library_query").val().toLowerCase()
+$("#youtube_search").on('click', function () {
+    var query = $("#library_query").val().toLowerCase();
+            .insertBefore($("#library"));
+$("#userpl_save").on('click', function() {
+    if($("#userpl_name").val().trim() == "") {
+            .insertAfter($("#userpl_save").parent());
+        name: $("#userpl_name").val()
+$("#mediarefresh").on('click', function() {
+$("#queue").sortable({
+            PL_AFTER = $(prev[0]).data("uid");
+        $("#queue").sortable("cancel");
+$("#queue").disableSelection();
+~ $
+~ $ curl -s https://cytu.be/js/ui.js | grep -o '\.on([^)]*' | head -50
+.on('focus', CyTube.ui.onPageFocus
+.on('blur', CyTube.ui.onPageBlur
+.on('focus', CyTube.ui.onPageFocus
+.on('click', function (
+.on('click', function (
+.on('mouseenter', function (ev
+.on('mousemove', function (ev
+.on('mouseleave', function (
+.on('scroll', function (ev
+.on('keydown', function (ev
+.on('keydown', function(ev
+.on('click', showPollMenu
+.on('click', function(
+.on('keydown', function(ev
+.on('click', function (
+.on('click', function(
+.on('click', function(
+.on('click', queue.bind(this, "next", "url"
+.on('click', queue.bind(this, "end", "url"
+.on('click', queue.bind(this, "next", "customembed"
+.on('click', queue.bind(this, "end", "customembed"
+.on('keyup', function(ev
+.on('keydown', function (ev
+.on('keydown', function(ev
+.on('click', function(
+.on('click', function(
+.on('click', function(
+.on("hidden.bs.modal", function(
+.on("playlist", callback
+.on("errorMsg", errCallback
+.on('click', function(
+.on('click', function(
+.on('click', chanrankSubmit.bind(this, 2
+.on('click', chanrankSubmit.bind(this, 3
+.on('click', chanrankSubmit.bind(this, 4
+.on('click', function (
+.on('change', function (
+.on('keyup', function (
+.on('keyup', function (event
+.on('click', function (
+.on('change', filterChannelLog
+.on('click', function (
+.on('click', function (
+.on('click', function (
+.on('click', function (
+.on('click', function (
+.on('click', function (
+.on("chatFilters", callback
+.on('click', function (
+.on('click', function (
+~ $
+~ $ curl -s https://cytu.be/js/ui.js | sed -n '160,220p'
+            options,
+            CyTube.chatTabCompleteData.context
+    );
+
+    chatline.value = result.text;
+    chatline.setSelectionRange(result.newPosition, result.newPosition);
+}
+
+$("#chatline").on('keydown', function(ev) {
+    // Enter/return
+    if(ev.keyCode == 13) {
+        if (CHATTHROTTLE) {
+            return;
+        }
+        var msg = $("#chatline").val();
+        if(msg.trim()) {
+            var meta = {};
+            if (USEROPTS.adminhat && CLIENT.rank >= 255) {
+                msg = "/a " + msg;
+            } else if (USEROPTS.modhat && CLIENT.rank >= Rank.Moderator) {
+                meta.modflair = CLIENT.rank;
+            }
+
+            // The /m command no longer exists, so emulate it clientside
+            if (CLIENT.rank >= 2 && msg.indexOf("/m ") === 0) {
+                meta.modflair = CLIENT.rank;
+                msg = msg.substring(3);
+            }
+
+            socket.emit("chatMsg", {
+                msg: msg,
+                meta: meta
+            });
+            CHATHIST.push($("#chatline").val());
+            CHATHISTIDX = CHATHIST.length;
+            $("#chatline").val("");
+        }
+        return;
+    }
+    else if(ev.keyCode == 9) { // Tab completion
+        try {
+            chatTabComplete(ev.target);
+        } catch (error) {
+            console.error(error);
+        }
+        ev.preventDefault();
+        return false;
+    }
+    else if(ev.keyCode == 38) { // Up arrow (input history)
+        if(CHATHISTIDX == CHATHIST.length) {
+            CHATHIST.push($("#chatline").val());
+        }
+        if(CHATHISTIDX > 0) {
+            CHATHISTIDX--;
+            $("#chatline").val(CHATHIST[CHATHISTIDX]);
+        }
+
+        ev.preventDefault();
+        return false;
+    }
+    else if(ev.keyCode == 40) { // Down arrow (input history)
+~ $
+~ $ curl -s https://cytu.be/js/ui.js | grep -n 'queue' | head -20
+311:$("#queue").sortable({
+325:        $("#queue").sortable("cancel");
+328:$("#queue").disableSelection();
+330:function queue(pos, src) {
+342:        socket.emit("queue", {
+360:        if (pos === "next" && $("#queue li").length === 0) links.unshift(links.pop());
+363:        var notification = document.getElementById("addfromurl-queue");
+366:            notification.id = "addfromurl-queue";
+376:                Callbacks.queueFail({
+387:                    Callbacks.queueFail({
+397:                    Callbacks.queueFail({
+404:                    Callbacks.queueFail({
+411:                    Callbacks.queueFail({
+453:            socket.emit("queue", data);
+456:                notification.textContent = "Waiting to queue " + emitQueue[0].link;
+468:$("#queue_next").on('click', queue.bind(this, "next", "url"));
+469:$("#queue_end").on('click', queue.bind(this, "end", "url"));
+470:$("#ce_queue_next").on('click', queue.bind(this, "next", "customembed"));
+471:$("#ce_queue_end").on('click', queue.bind(this, "end", "customembed"));
+475:        queue("end", "url");
+~ $
+
+
+~ $ curl -s https://cytu.be/js/ui.js | grep -n 'queue' | head -20
+311:$("#queue").sortable({
+325:        $("#queue").sortable("cancel");
+328:$("#queue").disableSelection();
+330:function queue(pos, src) {
+342:        socket.emit("queue", {
+360:        if (pos === "next" && $("#queue li").length === 0) links.unshift(links.pop());
+363:        var notification = document.getElementById("addfromurl-queue");
+366:            notification.id = "addfromurl-queue";
+376:                Callbacks.queueFail({
+387:                    Callbacks.queueFail({
+397:                    Callbacks.queueFail({
+404:                    Callbacks.queueFail({
+411:                    Callbacks.queueFail({
+453:            socket.emit("queue", data);
+456:                notification.textContent = "Waiting to queue " + emitQueue[0].link;
+468:$("#queue_next").on('click', queue.bind(this, "next", "url"));
+469:$("#queue_end").on('click', queue.bind(this, "end", "url"));
+470:$("#ce_queue_next").on('click', queue.bind(this, "next", "customembed"));
+471:$("#ce_queue_end").on('click', queue.bind(this, "end", "customembed"));
+475:        queue("end", "url");
+~ $
+~ $ curl -s https://cytu.be/js/ui.js | sed -n '330,420p'
+function queue(pos, src) {
+    if (!src) {
+        src = "url";
+    }
+
+    if (src === "customembed") {
+        var title = $("#customembed-title").val();
+        if (!title) {
+            title = false;
+        }
+        var content = $("#customembed-content").val();
+
+        socket.emit("queue", {
+            id: content,
+            title: title,
+            pos: pos,
+            type: "cu",
+            temp: $(".add-temp").prop("checked")
+        });
+    } else {
+        var linkList = $("#mediaurl").val();
+        var links = linkList.split(",http").map(function (link, i) {
+            if (i > 0) {
+                return "http" + link;
+            } else {
+                return link;
+            }
+        });
+
+        if (pos === "next") links = links.reverse();
+        if (pos === "next" && $("#queue li").length === 0) links.unshift(links.pop());
+        var emitQueue = [];
+        var addTemp = $(".add-temp").prop("checked");
+        var notification = document.getElementById("addfromurl-queue");
+        if (!notification) {
+            notification = document.createElement("div");
+            notification.id = "addfromurl-queue";
+            document.getElementById("addfromurl").appendChild(notification);
+        }
+
+        links.forEach(function (link) {
+            var data;
+
+            try {
+                data = parseMediaLink(link);
+            } catch (error) {
+                Callbacks.queueFail({
+                    link: link,
+                    msg: error.message
+                });
+                return;
+            }
+
+            var duration = undefined;
+            var title = undefined;
+            if (data.type === "fi") {
+                if (data.id.match(/^http:/)) {
+                    Callbacks.queueFail({
+                        link: data.id,
+                        msg: "Raw files must begin with 'https'.  Plain http is not supported."
+                    });
+                    return;
+                }
+
+                // Explicit checks for kissanime and mega.nz since everyone
+                // asks about them
+                if (data.id.match(/kissanime|kimcartoon|kisscartoon/i)) {
+                    Callbacks.queueFail({
+                        link: data.id,
+                        msg: "Kisscartoon and Kissanime are not supported.  See https://git.io/vxS9n" +
+                             " for more information about why these cannot be supported."
+                    });
+                    return;
+                } else if (data.id.match(/mega\.nz/)) {
+                    Callbacks.queueFail({
+                        link: data.id,
+                        msg: "Mega.nz is not supported.  See https://git.io/fx6fz" +
+                             " for more information about why mega.nz cannot be supported."
+                    });
+                    return;
+                } else if (data.id.match(/hazbinhelluvageneral\.com/)) {
+                    Callbacks.queueFail({
+                        link: data.id,
+                        msg: "Links from this domain are not allowed due to a DMCA notice."
+                    });
+                    return;
+                }
+
+                // Raw files allow title overrides since the ffprobe tag data
+                // is not always correct.
+                title = $("#addfromurl-title-val").val();
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'queue' | head -20
+672:        var q = $("#queue");
+677:            li.attr("title", data[i].queueby
+678:                                ? ("Added by: " + data[i].queueby)
+698:    queue: function(data) {
+699:        PL_ACTION_QUEUE.queue(function (plq) {
+703:                li.addClass("queue_active");
+705:            var q = $("#queue");
+706:            li.attr("title", data.item.queueby
+707:                                ? ("Added by: " + data.item.queueby)
+733:    queueWarn: function (data) {
+734:        queueMessage(data, "alert-warning");
+737:    queueFail: function (data) {
+741:        queueMessage(data, "alert-danger");
+750:            li.addClass("queue_temp");
+752:            li.removeClass("queue_temp");
+768:        PL_ACTION_QUEUE.queue(function (plq) {
+780:        PL_ACTION_QUEUE.queue(function (plq) {
+789:        $("#queue li").removeClass("queue_active");
+792:            li.addClass("queue_active");
+865:        CHANNEL.openqueue = !locked;
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '690,740p'
+        $("#plcount").text(c);
+        $("#pllength").text(data.time);
+
+        if (data.count === 0 && typeof onEmptyPlaylist === 'function') {
+            onEmptyPlaylist();
+        }
+    },
+
+    queue: function(data) {
+        PL_ACTION_QUEUE.queue(function (plq) {
+            stopQueueSpinner(data.item.media);
+            var li = makeQueueEntry(data.item, true);
+            if (data.item.uid === PL_CURRENT)
+                li.addClass("queue_active");
+            li.hide();
+            var q = $("#queue");
+            li.attr("title", data.item.queueby
+                                ? ("Added by: " + data.item.queueby)
+                                : "Added by: Unknown");
+            if (data.after === "prepend") {
+                li.prependTo(q);
+                li.show("fade", function () {
+                    plq.release();
+                });
+            } else if (data.after === "append") {
+                li.appendTo(q);
+                li.show("fade", function () {
+                    plq.release();
+                });
+            } else {
+                var liafter = playlistFind(data.after);
+                if (!liafter) {
+                    plq.release();
+                    return;
+                }
+                li.insertAfter(liafter);
+                li.show("fade", function () {
+                    plq.release();
+                });
+            }
+        });
+    },
+
+    queueWarn: function (data) {
+        queueMessage(data, "alert-warning");
+    },
+
+    queueFail: function (data) {
+        if (data.id) {
+            stopQueueSpinner(data);
+        }
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'mediaUpdate' | head -10
+854:    mediaUpdate: function(data) {
+1180://   localStorage.setItem('cytube_socket_omissions', '["mediaUpdate"]')
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '840,900p'
+                loadNext();
+            });
+        } else {
+            loadNext();
+        }
+
+        // Reset voteskip since the video changed
+        if (CHANNEL.opts.allow_voteskip) {
+            $("#voteskip").attr("disabled", false);
+        }
+
+        $("#currenttitle").text("Currently Playing: " + data.title);
+    },
+
+    mediaUpdate: function(data) {
+        if ($("body").hasClass("chatOnly") || $("#videowrap").length === 0) {
+            return;
+        }
+
+        if (PLAYER) {
+            handleMediaUpdate(data);
+        }
+    },
+
+    setPlaylistLocked: function (locked) {
+        CHANNEL.openqueue = !locked;
+        handlePermissionChange();
+        if(CHANNEL.openqueue) {
+            $("#qlockbtn").removeClass("btn-danger")
+                .addClass("btn-success")
+                .attr("title", "Playlist Unlocked");
+            $("#qlockbtn").find("span")
+                .removeClass("glyphicon-lock")
+                .addClass("glyphicon-ok");
+        } else {
+            $("#qlockbtn").removeClass("btn-success")
+                .addClass("btn-danger")
+                .attr("title", "Playlist Locked");
+            $("#qlockbtn").find("span")
+                .removeClass("glyphicon-ok")
+                .addClass("glyphicon-lock");
+        }
+    },
+
+    searchResults: function(data) {
+        $("#search_clear").remove();
+        clearSearchResults();
+        $("#library").data("entries", data.results);
+        $("<button/>").addClass("btn btn-default btn-sm btn-block")
+            .css("margin-left", "0")
+            .attr("id", "search_clear")
+            .text("Clear Results")
+            .on('click', function() {
+                clearSearchResults();
+            })
+            .insertBefore($("#library"));
+
+
+        $("#search_pagination").remove();
+        var opts = {
+            preLoadPage: function () {
+~ $curl -s https://cytu.be/js/player.js | grep -o 'PLAYER\.[a-zA-Z_]*' | sort -u
+~ $ curl -s https://cytu.be/js/player.js | grep -o 'PLAYER\.[a-zA-Z_]*' | sort -u
+PLAYER.destroy
+PLAYER.getTime
+PLAYER.load
+PLAYER.mediaId
+PLAYER.mediaLength
+PLAYER.pause
+PLAYER.pauseSeekRaceCondition
+PLAYER.paused
+PLAYER.play
+PLAYER.player
+PLAYER.seekTo
+~ $
+
+~ $ curl -s https://cytu.be/js/player.js | sed -n '900,960p'
+        this.pauseSeekRaceCondition = false;
+      }
+      if ((ev.data === YT.PlayerState.PAUSED && !this.paused) || (ev.data === YT.PlayerState.PLAYING && this.paused)) {
+        this.paused = ev.data === YT.PlayerState.PAUSED;
+        if (CLIENT.leader) {
+          sendVideoUpdate();
+        }
+      }
+      if (ev.data === YT.PlayerState.ENDED && CLIENT.leader) {
+        return socket.emit('playNext');
+      }
+    };
+
+    YouTubePlayer.prototype.play = function() {
+      this.paused = false;
+      if (this.yt && this.yt.ready) {
+        return this.yt.playVideo();
+      }
+    };
+
+    YouTubePlayer.prototype.pause = function() {
+      this.paused = true;
+      if (this.yt && this.yt.ready) {
+        return this.yt.pauseVideo();
+      }
+    };
+
+    YouTubePlayer.prototype.seekTo = function(time) {
+      if (this.yt && this.yt.ready) {
+        return this.yt.seekTo(time, true);
+      }
+    };
+
+    YouTubePlayer.prototype.setVolume = function(volume) {
+      if (this.yt && this.yt.ready) {
+        if (volume > 0) {
+          this.yt.unMute();
+        }
+        return this.yt.setVolume(volume * 100);
+      }
+    };
+
+    YouTubePlayer.prototype.setQuality = function(quality) {};
+
+    YouTubePlayer.prototype.getTime = function(cb) {
+      if (this.yt && this.yt.ready) {
+        return cb(this.yt.getCurrentTime());
+      } else {
+        return cb(0);
+      }
+    };
+
+    YouTubePlayer.prototype.getVolume = function(cb) {
+      if (this.yt && this.yt.ready) {
+        if (this.yt.isMuted()) {
+          return cb(0);
+        } else {
+          return cb(this.yt.getVolume() / 100);
+        }
+      } else {
+        return cb(VOLUME);
+~ $
+~ $ curl -s https://cytu.be/js/player.js | grep -n 'sendVideoUpdate' | head -10
+100:                return sendVideoUpdate();
+106:                sendVideoUpdate();
+250:              return sendVideoUpdate();
+256:              return sendVideoUpdate();
+365:              return sendVideoUpdate();
+482:                return sendVideoUpdate();
+488:                return sendVideoUpdate();
+619:              return sendVideoUpdate();
+625:              return sendVideoUpdate();
+774:              return sendVideoUpdate();
+~ $
+~ $ curl -s https://cytu.be/js/player.js | grep -n 'function sendVideoUpdate' -n
+~ $
+~ $ curl -s https://cytu.be/js/ui.js https://cytu.be/js/callbacks.js https://cytu.be/js/player.js | grep -n 'sendVideoUpdate'
+1582:            LEADTMR = setInterval(sendVideoUpdate, 5000);
+2433:                return sendVideoUpdate();
+2439:                sendVideoUpdate();
+2583:              return sendVideoUpdate();
+2589:              return sendVideoUpdate();
+2698:              return sendVideoUpdate();
+2815:                return sendVideoUpdate();
+2821:                return sendVideoUpdate();
+2952:              return sendVideoUpdate();
+2958:              return sendVideoUpdate();
+3107:              return sendVideoUpdate();
+3113:              return sendVideoUpdate();
+3238:          sendVideoUpdate();
+3345:              return sendVideoUpdate();
+3351:              return sendVideoUpdate();
+3895:                return sendVideoUpdate();
+3901:                return sendVideoUpdate();
+~ $
+~ $ curl -s https://cytu.be/js/ui.js https://cytu.be/js/callbacks.js https://cytu.be/js/player.js | grep -n 'sendVideoUpdate ='
+~ $
+~ $ curl -s https://cytu.be/js/ui.js https://cytu.be/js/callbacks.js https://cytu.be/js/player.js | grep -n 'sendVideoUpdate(' | head -20
+2433:                return sendVideoUpdate();
+2439:                sendVideoUpdate();
+2583:              return sendVideoUpdate();
+2589:              return sendVideoUpdate();
+2698:              return sendVideoUpdate();
+2815:                return sendVideoUpdate();
+2821:                return sendVideoUpdate();
+2952:              return sendVideoUpdate();
+2958:              return sendVideoUpdate();
+3107:              return sendVideoUpdate();
+3113:              return sendVideoUpdate();
+3238:          sendVideoUpdate();
+3345:              return sendVideoUpdate();
+3351:              return sendVideoUpdate();
+3895:                return sendVideoUpdate();
+3901:                return sendVideoUpdate();
+~ $
+~ $ curl -s https://cytu.be/js/ui.js | sed -n '1500,1650p'
+~ $
+~ $ curl -s https://cytu.be/js/data.js | grep -n 'sendVideoUpdate'
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -oP '\w+(?=\s*:\s*function)' | sort -u | head -50
+addUser
+announcement
+banlist
+banlistRemove
+cancelNeedPassword
+changeMedia
+channelCSSJS
+channelNotRegistered
+channelOpts
+channelRankFail
+channelRanks
+chatFilters
+chatMsg
+clearVoteskipVote
+clearchat
+closePoll
+connect
+cooldown
+costanza
+deleteChatFilter
+disconnect
+drinkCount
+emoteList
+error
+errorMsg
+generator
+kick
+listPlaylists
+login
+mediaUpdate
+moveVideo
+needPassword
+newPoll
+noflood
+partitionChange
+playlist
+pm
+preLoadPage
+queue
+queueFail
+queueWarn
+rank
+readChanLog
+reconnect
+removeEmote
+renameEmote
+searchResults
+setAFK
+setCurrent
+setLeader
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'setLeader' | head -10
+577:    setLeader: function (name) {
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '560,620p'
+        formatUserlistItem(user, data);
+        addUserDropdown(user, data);
+        sortUserlist();
+    },
+
+    setAFK: function() {
+        return true;
+    },
+
+    setUserProfile: function (data) {
+        var user = findUserlistItem(data.name);
+        if (user === null)
+            return;
+        user.data("profile", data.profile);
+        formatUserlistItem(user);
+    },
+
+    setLeader: function (name) {
+        $(".userlist_item").each(function () {
+            $(this).find(".glyphicon-star-empty").remove();
+            if ($(this).data("leader")) {
+                $(this).data("leader", false);
+                addUserDropdown($(this));
+            }
+        });
+        if (name === "") {
+            CLIENT.leader = false;
+            if(LEADTMR)
+                clearInterval(LEADTMR);
+            LEADTMR = false;
+            return;
+        }
+        var user = findUserlistItem(name);
+        if (user) {
+            user.data("leader", true);
+            formatUserlistItem(user);
+            addUserDropdown(user);
+        }
+        if (name === CLIENT.name) {
+            CLIENT.leader = true;
+            // I'm a leader!  Set up sync function
+            if(LEADTMR)
+                clearInterval(LEADTMR);
+            LEADTMR = setInterval(sendVideoUpdate, 5000);
+            handlePermissionChange();
+        } else if (CLIENT.leader) {
+            CLIENT.leader = false;
+            handlePermissionChange();
+            if(LEADTMR)
+                clearInterval(LEADTMR);
+            LEADTMR = false;
+        }
+    },
+
+    setUserRank: function (data) {
+        data.name = data.name.toLowerCase();
+        var entries = $("#cs-chanranks table").data("entries") || [];
+        var found = false;
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].name.toLowerCase() === data.name) {
+                entries[i].rank = data.rank;
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'mediaUpdate' -n
+854:    mediaUpdate: function(data) {
+1180://   localStorage.setItem('cytube_socket_omissions', '["mediaUpdate"]')
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'setPermissions' | head -10
+301:    setPermissions: function(perms) {
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '280,340p'
+            viewSource.setAttribute("role", "button");
+            viewSource.setAttribute("target", "_blank");
+            viewSource.setAttribute("rel", "noopener noreferer");
+            viewSource.textContent = "View external script source";
+            viewSource.href = opts.externaljs;
+            checkScriptAccess(viewSource, "external", function (pref) {
+                if (pref === "ALLOW") {
+                    $.getScript(opts.externaljs);
+                }
+            });
+        }
+
+        CHANNEL.opts = opts;
+
+        if(opts.allow_voteskip)
+            $("#voteskip").attr("disabled", false);
+        else
+            $("#voteskip").attr("disabled", true);
+        handlePermissionChange();
+    },
+
+    setPermissions: function(perms) {
+        CHANNEL.perms = perms;
+        genPermissionsEditor();
+        handlePermissionChange();
+    },
+
+    channelCSSJS: function(data) {
+        if (CyTube.channelCustomizations.cssHash !== data.cssHash) {
+            $("#chancss").remove();
+            CHANNEL.css = data.css;
+            $("#cs-csstext").val(data.css);
+            if(data.css && !USEROPTS.ignore_channelcss) {
+                $("<style/>").attr("type", "text/css")
+                    .attr("id", "chancss")
+                    .text(data.css)
+                    .on("load", function () {
+                        handleVideoResize();
+                    })
+                    .appendTo($("head"));
+            }
+
+            if (data.cssHash) {
+                CyTube.channelCustomizations.cssHash = data.cssHash;
+            }
+        }
+
+        if (CyTube.channelCustomizations.jsHash !== data.jsHash) {
+            $("#chanjs").remove();
+            CHANNEL.js = data.js;
+            $("#cs-jstext").val(data.js);
+
+            if(data.js && !USEROPTS.ignore_channeljs) {
+                var viewSource = document.createElement("button");
+                viewSource.className = "btn btn-danger";
+                viewSource.textContent = "View inline script source";
+                viewSource.onclick = function () {
+                    var content = document.createElement("pre");
+                    content.textContent = data.js;
+                    modalAlert({
+                        title: "Inline JS",
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'connect:' | head -10
+3:    connect: function() {
+28:    disconnect: function() {
+38:    reconnect: function () {
+47:            .text("Unable to connect: " + msg)
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '1,80p'
+const Callbacks = {
+    /* fired when socket connection completes */
+    connect: function() {
+        HAS_CONNECTED_BEFORE = true;
+        SOCKETIO_CONNECT_ERROR_COUNT = 0;
+        $("#socketio-connect-error").remove();
+        socket.emit("joinChannel", {
+            name: CHANNEL.name
+        });
+
+        if (CHANNEL.opts.password) {
+            socket.emit("channelPassword", CHANNEL.opts.password);
+        }
+
+        if (CLIENT.name && CLIENT.guest) {
+            socket.emit("login", {
+                name: CLIENT.name
+            });
+        }
+
+        $("<div/>").addClass("server-msg-reconnect")
+            .text("Connected")
+            .appendTo($("#messagebuffer"));
+        scrollChat();
+        stopQueueSpinner(null);
+    },
+
+    disconnect: function() {
+        if(KICKED)
+            return;
+        $("<div/>")
+            .addClass("server-msg-disconnect")
+            .text("Disconnected from server.")
+            .appendTo($("#messagebuffer"));
+        scrollChat();
+    },
+
+    reconnect: function () {
+        socket.emit("reportReconnect");
+    },
+
+    // Socket.IO error callback
+    error: function (msg) {
+        window.SOCKET_ERROR_REASON = msg;
+        $("<div/>")
+            .addClass("server-msg-disconnect")
+            .text("Unable to connect: " + msg)
+            .appendTo($("#messagebuffer"));
+    },
+
+    errorMsg: function(data) {
+        if (data.alert) {
+            alert(data.msg);
+        } else {
+            errDialog(data.msg);
+        }
+    },
+
+    costanza: function (data) {
+        $("#costanza-modal").modal("hide");
+        var modal = makeModal();
+        modal.attr("id", "costanza-modal")
+            .appendTo($("body"));
+
+        var body = $("<div/>").addClass("modal-body")
+            .appendTo(modal.find(".modal-content"));
+        $("<img/>").attr("src", "http://i0.kym-cdn.com/entries/icons/original/000/005/498/1300044776986.jpg")
+            .appendTo(body);
+
+        $("<strong/>").text(data.msg).appendTo(body);
+        modal.modal();
+    },
+
+    announcement: function(data) {
+        // Suppress this announcement for people who have already closed it
+        if (data.id && CyTube.ui.suppressedAnnouncementId
+                && data.id === CyTube.ui.suppressedAnnouncementId) {
+            return;
+        }
+        $("#announcements").html("");
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | grep -n 'userlist' | head -20
+455:            addRank(0, "<span class='userlist_guest'>Guest</span>");
+457:            addRank(2, "<span class='userlist_op'>Moderator</span>");
+458:            addRank(3, "<span class='userlist_owner'>Admin</span>");
+459:            addRank(255, "<span class='userlist_siteadmin'>Superadmin</span>");
+525:    userlist: function(data) {
+526:        $(".userlist_item").remove();
+578:        $(".userlist_item").each(function () {
+~ $
+~ $ curl -s https://cytu.be/js/callbacks.js | sed -n '500,580p'
+
+        if (data.username === CLIENT.name) {
+            name = data.to;
+        } else {
+            ping = true;
+        }
+        var pm = initPm(name);
+        var msg = formatChatMessage(data, pm.data("last"));
+        var buffer = pm.find(".pm-buffer");
+        msg.appendTo(buffer);
+        buffer.scrollTop(buffer.prop("scrollHeight"));
+        if (pm.find(".panel-body").is(":hidden")) {
+            pm.removeClass("panel-default").addClass("panel-primary");
+        }
+
+        if (ping) {
+            pingMessage(true, "PM: " + name, $(msg.children()[2]).text());
+        }
+    },
+
+    clearchat: function() {
+        $("#messagebuffer").html("");
+        LASTCHAT.name = "";
+    },
+
+    userlist: function(data) {
+        $(".userlist_item").remove();
+        for(var i = 0; i < data.length; i++) {
+            CyTube._internal_do_not_use_or_you_will_be_banned.addUserToList(data[i], false);
+        }
+        sortUserlist();
+    },
+
+    addUser: function(data) {
+        CyTube._internal_do_not_use_or_you_will_be_banned.addUserToList(data, true);
+        sortUserlist();
+    },
+
+    setUserMeta: function (data) {
+        var user = findUserlistItem(data.name);
+        if (user == null) {
+            return;
+        }
+
+        user.data("meta", data.meta);
+        if (data.meta.muted || data.meta.smuted) {
+            user.data("icon", "glyphicon-volume-off");
+        } else {
+            user.data("icon", false);
+        }
+
+        /*
+         * 2017-06-15
+         * TODO: Remove this and the empty function below
+         *         after script authors have had ample time to update
+         */
+        socket.listeners('setAFK').forEach(function(listener){
+            listener({ name: data.name, afk: data.meta.afk });
+        });
+
+        formatUserlistItem(user, data);
+        addUserDropdown(user, data);
+        sortUserlist();
+    },
+
+    setAFK: function() {
+        return true;
+    },
+
+    setUserProfile: function (data) {
+        var user = findUserlistItem(data.name);
+        if (user === null)
+            return;
+        user.data("profile", data.profile);
+        formatUserlistItem(user);
+    },
+
+    setLeader: function (name) {
+        $(".userlist_item").each(function () {
+            $(this).find(".glyphicon-star-empty").remove();
+            if ($(this).data("leader")) {
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'prototype\.[a-zA-Z_]*' | sort -u | head -50
+prototype.DEFAULT_ANNOUNCE_INTERVAL
+prototype.__proto__
+prototype._buffer
+prototype._checkAge
+prototype._connect
+prototype._coreCall
+prototype._countBits
+prototype._createEncoderBuffer
+prototype._createNamed
+prototype._createSourceBuffer
+prototype._dbl
+prototype._decode
+prototype._decodeBool
+prototype._decodeChoice
+prototype._decodeGeneric
+prototype._decodeInt
+prototype._decodeList
+prototype._decodeNull
+prototype._decodeObjid
+prototype._decodeStr
+prototype._decodeTag
+prototype._decodeTime
+prototype._decrypt
+prototype._destroy
+prototype._digest
+prototype._dumpDebugData
+prototype._encode
+prototype._encodeBool
+prototype._encodeChoice
+prototype._encodeComposite
+prototype._encodeInt
+prototype._encodeNull
+prototype._encodeObjid
+prototype._encodePrimitive
+prototype._encodeStr
+prototype._encodeTime
+prototype._encodeValue
+prototype._encrypt
+prototype._endoSplit
+prototype._endoWnafMulAdd
+prototype._events
+prototype._eventsCount
+prototype._expand
+prototype._extAdd
+prototype._extDbl
+prototype._final
+prototype._finalDecrypt
+prototype._finalEncrypt
+prototype._finalOrDigest
+prototype._fixedNafMul
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'client\.[a-zA-Z_]*' | sort -u
+client._debugId
+client._defaultAnnounceOpts
+client._downloadSpeed
+client._infoHashBinary
+client._peerIdBinary
+client._proxyOpts
+client._remove
+client._rtcConfig
+client._uploadSpeed
+client._wrtc
+client.blocked
+client.destroy
+client.dht
+client.emit
+client.enableWebSeeds
+client.infoHash
+client.listening
+client.lsd
+client.maxConns
+client.on
+client.once
+client.peerId
+client.scrape
+client.serviceWorker
+client.throttleGroups
+client.torrentPort
+client.tracker
+client.utp
+~ $
+
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'torrent\.[a-zA-Z_]*' | sort -u | head -50
+torrent.
+torrent._destroy
+torrent._onTorrentId
+torrent.announce
+torrent.bitfield
+torrent.client
+torrent.com
+torrent.comment
+torrent.critical
+torrent.deselect
+torrent.destroy
+torrent.destroyed
+torrent.downloaded
+torrent.emit
+torrent.files
+torrent.info
+torrent.infoHash
+torrent.infoHashHash
+torrent.io
+torrent.js
+torrent.lastPieceLength
+torrent.length
+torrent.load
+torrent.on
+torrent.once
+torrent.path
+torrent.pieceLength
+torrent.pieces
+torrent.private
+torrent.progress
+torrent.received
+torrent.removeListener
+torrent.select
+torrent.store
+torrent.uploaded
+torrent.wires
+torrent.xyz
+~ $
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'file\.[a-zA-Z_]*' | sort -u
+file._destroy
+file._endPiece
+file._serve
+file._startPiece
+file._torrent
+file.createReadStream
+file.done
+file.emit
+file.getStream
+file.js
+file.length
+file.name
+file.offset
+file.path
+file.size
+file.slice
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'RTCPeerConnection' | sort -u
+RTCPeerConnection
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'wss://[^"]*' | sort -u
+wss://tracker.btorrent.xyz
+wss://tracker.openwebtorrent.com
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'indexedDB\|localStorage\|IDB' | sort -u
+localStorage
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'store\.[a-zA-Z_]*' | sort -u
+store.
+store.call
+store.chunkLength
+store.close
+store.destroy
+store.get
+store.put
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'client\.\(add\|seed\|remove\)' | sort -u
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'client\.\(add\|seed\|remove\)' | sort -u
+~ $
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | grep -o 'add(\|seed(' | sort -u
+add(
+seed(
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | grep -n 'add(' | head -5
+347:    const torrent = this.add(null, opts, onTorrent)
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | sed -n '300,420p'
+   * @param  {string|File|FileList|Buffer|Array.<string|File|Buffer>} input
+   * @param  {Object=} opts
+   * @param  {function=} onseed called when torrent is seeding
+   */
+  seed (input, opts, onseed) {
+    if (this.destroyed) throw new Error('client is destroyed')
+    if (typeof opts === 'function') [opts, onseed] = [{}, opts]
+
+    this._debug('seed')
+    opts = opts ? Object.assign({}, opts) : {}
+
+    // no need to verify the hashes we create
+    opts.skipVerify = true
+
+    const isFilePath = typeof input === 'string'
+
+    // When seeding from fs path, initialize store from that path to avoid a copy
+    if (isFilePath) opts.path = path.dirname(input)
+    if (!opts.createdBy) opts.createdBy = `WebTorrent/${VERSION_STR}`
+
+    const onTorrent = torrent => {
+      const tasks = [
+        cb => {
+          // when a filesystem path is specified or the store is preloaded, files are already in the FS store
+          if (isFilePath || opts.preloadedStore) return cb()
+          torrent.load(streams, cb)
+        }
+      ]
+      if (this.dht) {
+        tasks.push(cb => {
+          torrent.once('dhtAnnounce', cb)
+        })
+      }
+      parallel(tasks, err => {
+        if (this.destroyed) return
+        if (err) return torrent._destroy(err)
+        _onseed(torrent)
+      })
+    }
+
+    const _onseed = torrent => {
+      this._debug('on seed')
+      if (typeof onseed === 'function') onseed(torrent)
+      torrent.emit('seed')
+      this.emit('seed', torrent)
+    }
+
+    const torrent = this.add(null, opts, onTorrent)
+    let streams
+
+    if (isFileList(input)) input = Array.from(input)
+    else if (!Array.isArray(input)) input = [input]
+
+    parallel(input.map(item => async cb => {
+      if (!opts.preloadedStore && isReadable(item)) {
+        const chunks = []
+        try {
+          for await (const chunk of item) {
+            chunks.push(chunk)
+          }
+        } catch (err) {
+          return cb(err)
+        }
+        const buf = concat(chunks)
+        buf.name = item.name
+        cb(null, buf)
+      } else {
+        cb(null, item)
+      }
+    }), (err, input) => {
+      if (this.destroyed) return
+      if (err) return torrent._destroy(err)
+
+      parseInput(input, opts, (err, files) => {
+        if (this.destroyed) return
+        if (err) return torrent._destroy(err)
+
+        streams = files.map(file => file.getStream)
+
+        createTorrent(input, opts, async (err, torrentBuf) => {
+          if (this.destroyed) return
+          if (err) return torrent._destroy(err)
+
+          const existingTorrent = await this.get(torrentBuf)
+          if (existingTorrent) {
+            console.warn('A torrent with the same id is already being seeded')
+            torrent._destroy()
+            if (typeof onseed === 'function') onseed(existingTorrent)
+          } else {
+            torrent._onTorrentId(torrentBuf)
+          }
+        })
+      })
+    })
+
+    return torrent
+  }
+
+  /**
+   * Remove a torrent from the client.
+   * @param  {string|Buffer|Torrent}   torrentId
+   * @param  {function} cb
+   */
+  async remove (torrentId, opts, cb) {
+    if (typeof opts === 'function') return this.remove(torrentId, null, opts)
+
+    this._debug('remove')
+    const torrent = await this.get(torrentId)
+    if (!torrent) throw new Error(`No torrent with id ${torrentId}`)
+    this._remove(torrent, opts, cb)
+  }
+
+  _remove (torrent, opts, cb) {
+    if (!torrent) return
+    if (typeof opts === 'function') return this._remove(torrent, null, opts)
+    const index = this.torrents.indexOf(torrent)
+    if (index === -1) return
+    this.torrents.splice(index, 1)
+    torrent.destroy(opts, cb)
+    if (this.dht) {
+      this.dht._tables.remove(torrent.infoHash)
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | grep -n 'opts\.' | head -50
+51:    if (typeof opts.peerId === 'string') {
+52:      this.peerId = opts.peerId
+53:    } else if (ArrayBuffer.isView(opts.peerId)) {
+54:      this.peerId = arr2hex(opts.peerId)
+60:    if (typeof opts.nodeId === 'string') {
+61:      this.nodeId = opts.nodeId
+62:    } else if (ArrayBuffer.isView(opts.nodeId)) {
+63:      this.nodeId = arr2hex(opts.nodeId)
+73:    this.torrentPort = opts.torrentPort || 0
+74:    this.dhtPort = opts.dhtPort || 0
+75:    this.tracker = opts.tracker !== undefined ? opts.tracker : {}
+76:    this.lsd = opts.lsd !== false
+77:    this.utPex = opts.utPex !== false
+78:    this.natUpnp = opts.natUpnp ?? true
+79:    this.natPmp = opts.natPmp ?? true
+81:    this.maxConns = Number(opts.maxConns) || 55
+82:    this.utp = WebTorrent.UTP_SUPPORT && opts.utp !== false
+83:    this.seedOutgoingConnections = opts.seedOutgoingConnections ?? true
+85:    this._downloadLimit = Math.max((typeof opts.downloadLimit === 'number') ? opts.downloadLimit : -1, -1)
+86:    this._uploadLimit = Math.max((typeof opts.uploadLimit === 'number') ? opts.uploadLimit : -1, -1)
+92:        upnpPermanentFallback: opts.natUpnp === 'permanent'
+96:    if (opts.secure === true) {
+127:    if (opts.dht !== false && typeof DHT === 'function' /* browser exclude */) {
+129:      this.dht = new DHT(Object.assign({}, { nodeId: this.nodeId }, opts.dht))
+161:    this.enableWebSeeds = opts.webSeeds !== false
+169:    if (typeof loadIPSet === 'function' && opts.blocklist != null) {
+170:      loadIPSet(opts.blocklist, {
+312:    opts.skipVerify = true
+317:    if (isFilePath) opts.path = path.dirname(input)
+318:    if (!opts.createdBy) opts.createdBy = `WebTorrent/${VERSION_STR}`
+324:          if (isFilePath || opts.preloadedStore) return cb()
+354:      if (!opts.preloadedStore && isReadable(item)) {
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/lib/torrent.js | grep -n 'select' | head -20
+35:import { Selections } from './selections.js'
+65: * @property {'rarest'|'sequential'=} strategy - Piece selection strategy, `rarest` or `sequential`(defaut=`sequential`)
+69: * @property {boolean=} deselect - If true, create the torrent with no pieces selected (default=false)
+158:    this._startAsDeselected = opts.deselect || false                                                                            179:    this._selections = new Selections()
+615:    if (this.so && !this._startAsDeselected) {
+618:          this.files[i].select()
+622:      // start off selecting the entire torrent with low priority
+623:      if (this.pieces.length !== 0 && !this._startAsDeselected) {
+624:        this.select(0, this.pieces.length - 1)
+890:    if (!this._startAsDeselected) this.select(index, index)
+934:    // In case any selections were made before torrent was ready
+961:    this._selections.clear()
+1238:  _select (start = 0, end = this.pieces.length - 1, priority, notify, isStreamSelection = false) {
+1242:      throw new Error(`invalid selection ${start} : ${end}`)
+1246:    this._debug('select %s-%s (priority %s)', start, end, priority)
+1248:    this._selections.insert({
+1257:    this._selections.sort((a, b) => b.priority - a.priority)
+1262:  select (start, end, priority, notify) {
+1263:    this._select(start, end, priority, notify, false)
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/lib/torrent.js | grep -n 'critical' | head -20
+180:    this._critical = []
+1280:  critical (start, end) {
+1283:    this._debug('critical %s-%s', start, end)
+1286:      this._critical[i] = true
+1742:            while (self._request(wire, piece, self._critical[piece] || hotswap) &&
+1761:            while (self._request(wire, piece, self._critical[piece] || hotswap) &&
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'stun:[^"]*'
+stun:stun.l.google.com:19302
+stun:global.stun.twilio.com:3478
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/lib/peer.js | head -100
+import EventEmitter from 'events'
+import { Transform, pipeline } from 'streamx'
+import arrayRemove from 'unordered-array-remove'
+import debugFactory from 'debug'
+import Wire from 'bittorrent-protocol'
+
+const CONNECT_TIMEOUT_TCP = 5_000
+const CONNECT_TIMEOUT_UTP = 5_000
+const CONNECT_TIMEOUT_WEBRTC = 25_000
+const HANDSHAKE_TIMEOUT = 25_000
+
+// Types of peers
+const TYPE_TCP_INCOMING = 'tcpIncoming'
+const TYPE_TCP_OUTGOING = 'tcpOutgoing'
+const TYPE_UTP_INCOMING = 'utpIncoming'
+const TYPE_UTP_OUTGOING = 'utpOutgoing'
+const TYPE_WEBRTC = 'webrtc'
+const TYPE_WEBSEED = 'webSeed'
+
+// Source used to obtain the peer
+const SOURCE_MANUAL = 'manual'
+const SOURCE_TRACKER = 'tracker'
+const SOURCE_DHT = 'dht'
+const SOURCE_LSD = 'lsd'
+const SOURCE_UT_PEX = 'ut_pex'
+
+const debug = debugFactory('webtorrent:peer')
+
+let secure = false
+
+export const enableSecure = () => {
+  secure = true
+}
+
+/**
+ * Peer. Represents a peer in the torrent swarm.
+ *
+ * @param {string} id "ip:port" string, peer id (for WebRTC peers), or url (for Web Seeds)
+ * @param {string} type the type of the peer
+ */
+export default class Peer extends EventEmitter {
+  constructor (id, type) {
+    super()
+
+    this.id = id
+    this.type = type
+
+    debug('new %s Peer %s', type, id)
+
+    this.addr = null
+    this.conn = null
+    this.swarm = null
+    this.wire = null
+    this.source = null
+
+    this.connected = false
+    this.destroyed = false
+    this.timeout = null // handshake timeout
+    this.retries = 0 // outgoing TCP connection retry count
+
+    this.sentPe1 = false
+    this.sentPe2 = false
+    this.sentPe3 = false
+    this.sentPe4 = false
+    this.sentHandshake = false
+  }
+
+  /**
+   * Called once the peer is connected (i.e. fired 'connect' event)
+   * @param {Socket} conn
+   */
+  onConnect () {
+    if (this.destroyed) return
+    this.connected = true
+    this.emit('connect')
+
+    debug('Peer %s connected', this.id)
+
+    clearTimeout(this.connectTimeout)
+
+    const conn = this.conn
+    conn.once('end', () => {
+      this.destroy()
+    })
+    conn.once('close', () => {
+      this.destroy()
+    })
+    conn.once('finish', () => {
+      this.destroy()
+    })
+    conn.once('error', err => {
+      this.destroy(err)
+    })
+
+    const wire = this.wire = new Wire(this.type, this.retries, secure)
+
+    wire.once('end', () => {
+      this.destroy()
+    })
+    wire.once('close', () => {
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | grep -n 'pieceLength'
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/index.js | grep -n 'pieceLength'
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/create-torrent@latest/index.js | grep -n 'infoHash'
+~ $ curl -s https://cdn.jsdelivr.net/npm/create-torrent@latest/index.js | grep -n 'infoHash'
+~ $
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'iceServers:[^]]*]' | head -5                iceServers:[{urls:["stun:stun.l.google.com:19302","stun:global.stun.twilio.com:3478"]                                               ~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o 'createDataChannel([^)]*)' | sort -u         createDataChannel(this.channelName,this.channelConfig)                                                                              ~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o '"offer"\|"answer"\|"candidate"' | sort -u
+"candidate"
+"offer"
+~ $
+~ $ curl -s https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js | grep -o '_rtcConfig' | sort -u                       _rtcConfig                                                                                                                          ~ $
