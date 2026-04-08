@@ -83,6 +83,7 @@ const CFG = {
   archiveApi: 'https://archive.org/advancedsearch.php',
 
   // Known CORS-blocking PeerTube instances — fileUrl from these won't play cross-origin.
+  // Extend this list as we discover more. SepiaSearch results from these are skipped.
   corsBlocklist: [
     'peertube.opencloud.lu',
     'video.lqdn.fr',
@@ -97,13 +98,11 @@ const CFG = {
 };
 
 // ── KNOWN HASHES ────────────────────────────────────────────
-// All webseed URLs must be CORS-open (archive.org always is).
-// commondatastorage.googleapis.com blocks cross-origin range requests — do not use.
 const KNOWN = {
   'dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c': {
     name: 'Big Buck Bunny',
     torrentUrl: 'https://webtorrent.io/torrents/big-buck-bunny.torrent',
-    ws: 'https://archive.org/download/BigBuckBunny/BigBuckBunny_512kb.mp4',
+    ws: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Google CDN — no CORS, H.264, works everywhere
   },
   '08ada5a7a6183aae1e09d831df6748d566095a10': {
     name: 'Sintel',
@@ -199,6 +198,7 @@ function flushChat() {
     S.chatCount = 0;
     S.chatReset = setTimeout(function () { S.chatCount = 0; S.chatReset = null; }, 5000);
   }
+  // CHATTHROTTLE is CyTube's internal rate-limit flag — if true, message will be dropped
   if (window.CHATTHROTTLE) {
     S.chatTimer = setTimeout(flushChat, 300);
     return;
@@ -252,7 +252,10 @@ function buildMagnet(hash, ws, dn) {
 
 // ── COORDINATOR DETECTION ────────────────────────────────────
 function isCoordinator() {
+  // CyTube's CLIENT.leader flag is the most reliable coordinator signal —
+  // it's set server-side when setLeader is emitted. Check it first.
   if (window.CLIENT && CLIENT.leader === true) return true;
+  // Rank-based fallback: highest rank in room is coordinator
   if (S.myRank < 1.5) return false;
   const items = Array.from(document.querySelectorAll('#userlist .userlist_item'));
   if (!items.length) return true;
@@ -261,6 +264,8 @@ function isCoordinator() {
     const sp = el.querySelector('span:nth-child(2)');
     const name = sp ? sp.textContent.trim() : '';
     if (!name || name === S.myName) return;
+    // Use confirmed CSS class names from CyTube source (callbacks.js line 455-459):
+    // userlist_guest=0, userlist_op=2(mod), userlist_owner=3(admin), userlist_siteadmin=255
     const c = (el.className || '') + (sp ? (sp.className || '') : '');
     let r = 1;
     if (c.includes('userlist_siteadmin')) r = 255;
@@ -274,6 +279,10 @@ function isCoordinator() {
 // ── WEBTORRENT CLIENT ────────────────────────────────────────
 function mkClient() {
   const wt = new window.WebTorrent({
+    // Extend ICE server list beyond WebTorrent's default (Google + Twilio only).
+    // More STUN servers = better NAT traversal, especially for Verizon mobile.
+    // No TURN available in browser WebTorrent — symmetric NAT peers won't connect
+    // via WebRTC but will still get pieces via webseed HTTP.
     tracker: {
       rtcConfig: {
         iceServers: [
@@ -296,7 +305,7 @@ function startSwarmThenRelay(hash, ws, dn) {
   if (!S.wt) S.wt = mkClient();
   transition('METADATA');
 
-  S.activeWs = ws || null;
+  S.activeWs = ws || null;  // store for attachVideo
   idbGetTorrent(hash, function (cachedBuf) {
     const magnet = buildMagnet(hash, ws, dn);
     let t;
@@ -333,7 +342,7 @@ function startSwarm(hash, ws, dn) {
 
   idbGetTorrent(hash, function (cachedBuf) {
     const magnet = buildMagnet(hash, ws, dn);
-    S.activeWs = ws || null;
+    S.activeWs = ws || null;  // store for attachVideo
     log('adding magnet, ws=' + (ws ? ws.slice(0, 60) : 'none'));
 
     let t;
@@ -372,6 +381,7 @@ function bindTorrent(t) {
 
   t.on('metadata', function () {
     log('metadata:', t.name, '— files:', t.files.length);
+    // Mark first 5% of pieces as critical — fetched before all others for fast start
     if (t.pieces && t.pieces.length > 0) {
       const critEnd = Math.max(0, Math.floor(t.pieces.length * 0.05) - 1);
       try { t.critical(0, critEnd); log('critical 0-' + critEnd + '/' + t.pieces.length); }
@@ -429,19 +439,24 @@ function bindTorrent(t) {
 }
 
 function attachVideo(t, wsUrl) {
+  // Guard: only attach once per torrent session
   if (S.videoAttached) { log('attachVideo: already attached, skipping'); return; }
   S.videoAttached = true;
 
   const overlay = document.getElementById('hs-overlay');
   if (overlay) overlay.style.display = 'none';
 
+  // STRATEGY: Play the webseed URL directly via HTTP src.
+  // renderTo() uses MediaSource API which requires fragmented MP4 — regular MP4s
+  // stall at readyState=1 forever on mobile. Direct HTTP src works on all browsers
+  // with any MP4. WebTorrent continues running in background for P2P seeding.
   if (wsUrl && wsUrl.startsWith('http')) {
     log('direct HTTP play:', wsUrl.slice(0, 80));
-    playDirect(wsUrl, t);
+    playDirect(wsUrl);
     return;
   }
 
-  // No webseed — fall back to renderTo
+  // No webseed — fall back to renderTo (works for fragmented/webm files)
   const PLAYABLE = /\.(mp4|webm|mkv|mov|ogv|ogg|m4v)$/i;
   let best = null;
   t.files.forEach(function (f) {
@@ -452,17 +467,18 @@ function attachVideo(t, wsUrl) {
   });
   if (!best) { errlog('no playable file'); return; }
   log('renderTo fallback:', best.name);
-  wireVideoEvents(t, null);
+  wireVideoEvents();
   best.renderTo(S.video, function (err) {
     if (err) { errlog('renderTo:', err.message); S.videoAttached = false; }
     else { log('renderTo OK readyState=' + S.video.readyState); }
   });
 }
 
-function playDirect(url, torrent) {
-  wireVideoEvents(torrent, url);
+function playDirect(url) {
+  wireVideoEvents();
   S.video.src = url;
   S.video.load();
+  // play() is safe here — we set src ourselves, no renderTo race
   const p = S.video.play();
   if (p && typeof p.then === 'function') {
     p.then(function () {
@@ -474,34 +490,35 @@ function playDirect(url, torrent) {
   }
 }
 
-// torrent + wsUrl passed in so onerror can fall back to renderTo
-function wireVideoEvents(torrent, wsUrl) {
+function wireVideoEvents() {
   S.video.onplaying = function () {
     log('video playing readyState=' + S.video.readyState);
     hideTapOverlay();
   };
   S.video.oncanplay = function () {
     log('canplay paused=' + S.video.paused);
+    // Only show tap overlay if video has never started (currentTime=0 and paused).
+    // Buffering stalls mid-video also fire canplay — don't interrupt those with overlay.
     if (S.video.paused && S.video.currentTime < 0.5) showTapOverlay();
   };
   S.video.onerror = function () {
-    const err = S.video.error;
-    errlog('video error:', err ? err.message : 'unknown');
-
-    // MEDIA_ERR_SRC_NOT_SUPPORTED (code 4) = CORS block or bad URL.
-    // If the torrent has fully downloaded files, try renderTo instead.
-    if (err && err.code === 4 && torrent && torrent.files && torrent.files.length) {
-      warn('src not supported — falling back to renderTo (WebTorrent)');
-      S.video.removeAttribute('src');
-      S.video.load();
-      S.videoAttached = false;   // allow attachVideo to run again
-      attachVideo(torrent, null); // null forces renderTo branch
-      return;
-    }
-    // For any other error, show overlay and let user decide
-    setOverlay('Video error — try !hs stop and reload');
+    const msg = S.video.error ? S.video.error.message : 'unknown error';
+    errlog('video error:', msg);
+    // Clear the broken src so the element is clean for next attempt
+    S.video.removeAttribute('src');
+    S.video.load();
+    S.videoAttached = false;
+    // Tell user what happened — do NOT fall back to renderTo (readyState=1 dead end)
+    const hint = msg.indexOf('Format') >= 0 || msg.indexOf('source') >= 0
+      ? 'Codec/format not supported by this browser. Try !hs stop then pick a different video.'
+      : 'Video failed to load: ' + msg;
+    setOverlay(hint);
+    chat('⚠ ' + hint);
+    // Revert state to IDLE so coordinator can pick another video
+    if (S.state !== 'IDLE') transition('IDLE');
   };
 }
+
 
 function showTapOverlay() {
   const old = document.getElementById('hs-tap');
@@ -516,6 +533,8 @@ function showTapOverlay() {
     '<div style="font-size:64px;line-height:1;text-shadow:0 0 30px #39ff14">▶</div>' +
     '<div style="color:#39ff14;font:13px Courier New,monospace;margin-top:8px">tap to play</div>';
   tap.onclick = function () {
+    // Muted play bypasses all autoplay/power-saving restrictions.
+    // onplaying handler in attachVideo will call hideTapOverlay + showUnmuteBtn.
     S.video.muted = true;
     const p = S.video.play();
     if (p && typeof p.then === 'function') {
@@ -531,6 +550,8 @@ function hideTapOverlay() {
   if (el) el.remove();
 }
 
+// Unmute button — shown after muted autoplay succeeds.
+// Small, unobtrusive, disappears after unmuting.
 function showUnmuteBtn() {
   if (document.getElementById('hs-unmute')) return;
   const btn = document.createElement('button');
@@ -604,11 +625,15 @@ function applySync(t) {
 }
 
 // ── SEARCH / TOP ─────────────────────────────────────────────
+// ── ARCHIVE.ORG SEARCH ──────────────────────────────────────
+// Returns direct MP4 URLs — no CORS, no WebTorrent needed, always works.
+// Query hits Internet Archive's full-text search across millions of items.
 function cmdArchive(q) {
   if (!isCoordinator()) { chat('Only the coordinator can search.'); return; }
   if (S.state !== 'IDLE') { chat('Stop current video first: !hs stop'); return; }
   transition('FETCHING');
   setOverlay('Searching Archive.org…');
+  // mediatype:movies finds video items; output=json for API response
   const url = CFG.archiveApi + '?q=' + encodeURIComponent(q + ' AND mediatype:movies') +
     '&fl[]=identifier,title,description&sort[]=downloads+desc&rows=20&output=json';
   fetch(url)
@@ -617,6 +642,7 @@ function cmdArchive(q) {
       transition('IDLE');
       const docs = (d.response && d.response.docs) || [];
       if (!docs.length) { chat('No Archive.org results for: ' + q); setOverlay('Nothing Playing'); return; }
+      // Store as results with a flag so cmdPick knows to use archive path
       S.results = docs.map(function (doc) {
         return {
           _archive: true,
@@ -639,6 +665,7 @@ function cmdArchive(q) {
     });
 }
 
+// Fetch the best MP4 file from an Archive.org item
 function archivePick(item) {
   transition('FETCHING');
   setOverlay('Fetching from Archive.org…');
@@ -649,6 +676,7 @@ function archivePick(item) {
       const files = (meta.files || []).filter(function (f) {
         return /\.mp4$/i.test(f.name) && f.source !== 'derivative';
       });
+      // Prefer original mp4, fallback to any mp4
       const all = (meta.files || []).filter(function (f) { return /\.mp4$/i.test(f.name); });
       const target = files[0] || all[0];
       if (!target) { chat('No MP4 found in: ' + item.identifier); setOverlay('Nothing Playing'); return; }
@@ -656,9 +684,11 @@ function archivePick(item) {
       chat('Playing: "' + item.name + '" from Archive.org');
       setOverlay('Connecting…');
       S.activeWs = url;
+      // No WebTorrent for archive items — pure HTTP play
+      // Still need a fake torrent state so UI works correctly
       transition('BUFFERING');
-      wireVideoEvents(null, url);
-      playDirect(url, null);
+      wireVideoEvents();
+      playDirect(url);
       transition('PLAYING');
       const el = document.getElementById('currenttitle');
       if (el) el.textContent = item.name;
@@ -698,6 +728,7 @@ function cmdSearch(q) {
   if (!isCoordinator()) { chat('Only the room coordinator can search.'); return; }
   if (S.state !== 'IDLE') { chat('Stop current video first: !hs stop'); return; }
 
+  // Check if query starts with 'archive:' — route to Archive.org search
   if (q.toLowerCase().startsWith('archive:')) {
     cmdArchive(q.slice(8).trim());
     return;
@@ -710,6 +741,7 @@ function cmdSearch(q) {
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (d) {
       transition('IDLE');
+      // Filter out known CORS-blocking instances
       const all = d.data || [];
       const filtered = all.filter(function (v) {
         const host = v.account && v.account.host ? v.account.host : '';
@@ -740,6 +772,7 @@ function cmdPick(n) {
   const v = S.results[n - 1];
   if (!v) { chat('No result ' + n + '. Run !hs top or search first.'); return; }
 
+  // Archive.org item — different path, no WebTorrent
   if (v._archive) { archivePick(v); return; }
 
   const host = v.account && v.account.host ? 'https://' + v.account.host : 'https://framatube.org';
@@ -792,7 +825,11 @@ function cmdPick(n) {
       chat('Playing: "' + data.name + '" [' + res + 'p] — relaying to room');
       setOverlay('Connecting…');
 
+      // fileUrl = direct HTTP MP4 on the PeerTube server — play directly like Big Buck Bunny.
+      // This bypasses MediaSource/WebTorrent renderTo and works on all browsers.
+      // WebTorrent magnet still runs in background for P2P seeding if hash available.
       if (ws) {
+        // Test if the fileUrl is actually reachable (HEAD request, no body)
         fetch(ws, { method: 'HEAD', mode: 'no-cors' })
           .then(function () {
             log('fileUrl HEAD ok — playing direct');
@@ -835,6 +872,7 @@ function cmdPickHash(hash) {
       else relay('_i ' + hash + ' -');
       if (existing.files && existing.files.length) {
         transition('BUFFERING');
+        S.activeWs = S.activeWs || null;
         attachVideo(existing, S.activeWs); startHUD(existing); startSyncTimer();
       } else {
         bindTorrent(existing);
@@ -856,7 +894,7 @@ function cmdPickHash(hash) {
       }
     }
     S.torrent = t;
-    S.activeWs = ws || null;
+    S.activeWs = ws || null;  // MUST be set before bindTorrent→attachVideo
 
     const relayOnce = function () {
       log('infoHash confirmed — relaying to peers now');
@@ -919,12 +957,26 @@ function buildUI() {
   #hs-dblog{color:#39ff14;font:9px 'Courier New',monospace;padding:6px 8px;height:150px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;scrollbar-width:thin;scrollbar-color:#1a1a1a #000;}
   #hs-dbtoggle{position:fixed;bottom:4px;right:4px;z-index:100000;background:#000;border:1px solid #1a1a1a;color:#333;font:9px 'Courier New',monospace;padding:3px 8px;cursor:pointer;}
   #hs-dbtoggle:hover{border-color:#39ff14;color:#39ff14;}
-  #hs-video{pointer-events:none;}
-  #hs-controls{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0d0d0d;border-top:1px solid #1a1a1a;flex-shrink:0;}
-  #hs-controls button{background:none;border:none;color:#39ff14;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;flex-shrink:0;}
+
+  /* ── Persistent custom controls ── */
+  #hs-video{pointer-events:none;}  /* clicks go to our bar, not native controls */
+  #hs-controls{
+    display:flex;align-items:center;gap:8px;
+    padding:6px 8px;background:#0d0d0d;border-top:1px solid #1a1a1a;
+    flex-shrink:0;
+  }
+  #hs-controls button{
+    background:none;border:none;color:#39ff14;cursor:pointer;
+    font-size:16px;padding:2px 6px;line-height:1;flex-shrink:0;
+  }
   #hs-controls button:hover{color:#fff;}
-  #hs-seek{flex:1;height:3px;accent-color:#39ff14;cursor:pointer;background:#222;border-radius:2px;}
-  #hs-time{color:#555;font:10px 'Courier New',monospace;white-space:nowrap;flex-shrink:0;}
+  #hs-seek{
+    flex:1;height:3px;accent-color:#39ff14;cursor:pointer;
+    background:#222;border-radius:2px;
+  }
+  #hs-time{
+    color:#555;font:10px 'Courier New',monospace;white-space:nowrap;flex-shrink:0;
+  }
   `;
   document.head.appendChild(style);
 
@@ -964,6 +1016,7 @@ function buildUI() {
 
   root.appendChild(vwrap);
 
+  // ── Persistent control bar ──
   const ctrlBar = document.createElement('div');
   ctrlBar.id = 'hs-controls';
   ctrlBar.innerHTML =
@@ -989,23 +1042,30 @@ function buildUI() {
   document.getElementById('hs-topbtn').onclick = cmdTop;
   document.getElementById('hs-stopbtn').onclick = function () { stopAll(true); };
 
+  // Play/pause button
   document.getElementById('hs-playbtn').onclick = function () {
     if (!S.video) return;
-    if (S.video.paused) { S.video.play().catch(function(){}); }
-    else { S.video.pause(); }
+    if (S.video.paused) {
+      S.video.play().catch(function(){});
+    } else {
+      S.video.pause();
+    }
   };
 
+  // Seek bar — update while dragging
   document.getElementById('hs-seek').oninput = function () {
     if (!S.video || !S.video.duration) return;
     S.video.currentTime = (this.value / 1000) * S.video.duration;
   };
 
+  // Mute/unmute
   document.getElementById('hs-mutebtn').onclick = function () {
     if (!S.video) return;
     S.video.muted = !S.video.muted;
     this.textContent = S.video.muted ? '🔇' : '🔊';
   };
 
+  // Sync — broadcast coordinator's current position to room
   document.getElementById('hs-syncbtn').onclick = function () {
     if (!S.video || !S.video.duration) { chat('Nothing playing to sync.'); return; }
     const t = S.video.currentTime.toFixed(2);
@@ -1015,6 +1075,7 @@ function buildUI() {
     if (btn) { btn.textContent = '✓ synced'; setTimeout(function () { btn.textContent = 'sync'; }, 2000); }
   };
 
+  // Fullscreen
   document.getElementById('hs-fullbtn').onclick = function () {
     const vw = document.getElementById('hs-vwrap');
     if (!vw) return;
@@ -1025,6 +1086,7 @@ function buildUI() {
     }
   };
 
+  // Tick — update seek bar and time display every 500ms
   setInterval(function () {
     const v = S.video;
     if (!v || !v.duration) return;
@@ -1138,15 +1200,6 @@ function setOverlay(txt) {
 }
 
 // ── INDEXEDDB ────────────────────────────────────────────────
-function idbDeleteKey(hash) {
-  if (!S.idb) return;
-  try {
-    const tx = S.idb.transaction('torrents', 'readwrite');
-    tx.objectStore('torrents').delete(hash);
-    warn('IDB: deleted corrupt entry for', hash);
-  } catch (e) { warn('IDB: delete failed for', hash, e.message); }
-}
-
 function openIDB() {
   if (!window.indexedDB) return;
   const r = indexedDB.open(CFG.idbName, CFG.idbVersion);
@@ -1167,6 +1220,8 @@ function openIDB() {
 
 function idbStoreTorrent(t) {
   if (!S.idb) return;
+  // torrentFile is only available after 'ready' fires and only on some add paths.
+  // Use a retry with timeout to wait for it.
   function tryStore(attempts) {
     if (!t.torrentFile) {
       if (attempts > 0) setTimeout(function () { tryStore(attempts - 1); }, 500);
@@ -1174,6 +1229,7 @@ function idbStoreTorrent(t) {
       return;
     }
     try {
+      // Safe ArrayBuffer copy — Buffer.buffer may be a larger shared backing store
       const b = t.torrentFile;
       const clean = b.buffer.slice
         ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
@@ -1183,7 +1239,7 @@ function idbStoreTorrent(t) {
       log('IDB stored:', t.infoHash, '(' + clean.byteLength + 'B)');
     } catch (e) { warn('IDB store error:', e.message || e); }
   }
-  tryStore(6);
+  tryStore(6); // try up to 6 times, 500ms apart = 3 seconds max
 }
 
 function idbGetTorrent(hash, cb) {
@@ -1209,40 +1265,32 @@ function autoSeedFromIDB() {
         idbGetTorrent(hash, function (buf) {
           if (!buf || !S.wt) return;
           if (S.wt.get(hash)) { log('IDB: already in wt client:', hash); return; }
-          let t;
           try {
-            t = S.wt.add(new Uint8Array(buf), { announce: CFG.trackers });
+            const t = S.wt.add(new Uint8Array(buf), { announce: CFG.trackers });
+            log('IDB: loaded', hash, '— seeding');
+            t.on('error', function (e) {
+              if ((e.message || '').indexOf('duplicate') >= 0) return;
+              warn('IDB torrent error:', e.message);
+            });
+            t.on('metadata', function () {
+              log('IDB seed ready:', t.name, t.infoHash);
+              if (isCoordinator() && idx === hashes.length - 1 && S.state === 'IDLE') {
+                S.torrent = t;
+                transition('SEEDING');
+                attachVideo(t, S.activeWs);
+                startHUD(t);
+                startSyncTimer();
+                chat('"' + t.name + '" restored from cache — seeding to room');
+                const k = KNOWN[t.infoHash];
+                const ws = k ? k.ws : null;
+                if (ws) relay(encodeRelay(t.infoHash, ws));
+                else relay('_i ' + t.infoHash + ' -');
+              }
+            });
           } catch (e) {
-            // Invalid torrent identifier = stored buffer is corrupt — purge it
-            warn('IDB: corrupt entry for', hash, '(' + e.message + ') — purging');
-            idbDeleteKey(hash);
-            return;
+            if ((e.message || '').indexOf('duplicate') >= 0) return;
+            warn('IDB add error:', hash, e.message);
           }
-          log('IDB: loaded', hash, '— seeding');
-          t.on('error', function (e) {
-            const msg = e.message || String(e);
-            if (msg.indexOf('duplicate') >= 0) return;
-            warn('IDB torrent error:', msg);
-            // If WebTorrent itself rejects the buffer, purge the IDB entry
-            if (msg.indexOf('Invalid') >= 0 || msg.indexOf('invalid') >= 0) {
-              idbDeleteKey(hash);
-            }
-          });
-          t.on('metadata', function () {
-            log('IDB seed ready:', t.name, t.infoHash);
-            if (isCoordinator() && idx === hashes.length - 1 && S.state === 'IDLE') {
-              S.torrent = t;
-              transition('SEEDING');
-              attachVideo(t, S.activeWs);
-              startHUD(t);
-              startSyncTimer();
-              chat('"' + t.name + '" restored from cache — seeding to room');
-              const k = KNOWN[t.infoHash];
-              const ws = k ? k.ws : null;
-              if (ws) relay(encodeRelay(t.infoHash, ws));
-              else relay('_i ' + t.infoHash + ' -');
-            }
-          });
         });
       });
     };
@@ -1266,15 +1314,22 @@ function hookChat() {
     if (d && d.name) { S.myName = d.name; if (d.rank !== undefined) S.myRank = d.rank; }
   });
 
+  // Hook CyTube's leader system — if we're made leader, take coordinator role.
+  // CLIENT.leader is set by CyTube's setLeader callback.
   socket.on('setLeader', function (name) {
     if (name === S.myName) {
       log('CyTube setLeader: we are now leader — coordinator active');
+      // CyTube leader = HiveStream coordinator: start sync timer
       if (S.video && S.torrent) startSyncTimer();
     }
   });
 
+  // Hook changeMedia — if CyTube playlist advances to a non-HiveStream item,
+  // stop HiveStream so the native CyTube player can take over.
   socket.on('changeMedia', function (data) {
     log('changeMedia:', data && data.title);
+    // If HiveStream is active and CyTube just switched media, stop HS
+    // unless the new item is a custom embed (type 'cu') — those are ours.
     if (S.state !== 'IDLE' && data && data.type && data.type !== 'cu') {
       log('changeMedia: non-HS media detected, stopping HiveStream');
       stopAll(false);
@@ -1290,8 +1345,11 @@ function onCmd(sender, cmd, args) {
     const { hash, ws } = decodeRelay(args[0] || '', args[1] || '-');
     log('relay _i hash=' + hash + ' ws=' + ws.slice(0, 60));
 
+    // If already active (BUFFERING/PLAYING/SEEDING), ignore even if we have the torrent.
+    // This prevents the coordinator from double-attaching when they receive their own relay.
     if (S.state !== 'IDLE') { log('_i: state=' + S.state + ', ignoring relay'); return; }
 
+    // IDB fast-path: if we already downloaded this torrent in a prior session, attach immediately
     const cached = S.wt ? S.wt.get(hash) : null;
     if (cached && cached.files && cached.files.length) {
       log('_i: IDB cache hit — attaching directly');
@@ -1358,6 +1416,7 @@ function detectSelf() {
     if (window.CLIENT) {
       S.myName = CLIENT.name || '';
       S.myRank = CLIENT.rank !== undefined ? CLIENT.rank : -1;
+      // CLIENT.leader is set by CyTube when this user is designated sync leader
       log('CLIENT.leader:', CLIENT.leader);
     }
   } catch (e) {}
