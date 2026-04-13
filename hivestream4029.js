@@ -1402,8 +1402,9 @@ function showGrid(items) {
     const div = document.createElement('div');
     div.className = 'hs-thumb';
     const img = document.createElement('img');
-    const host = r.account && r.account.host ? 'https://' + r.account.host : '';
-    img.src = r.thumbnailUrl || (r.thumbnailPath ? host + r.thumbnailPath : '');
+    const hostFull = r.account && r.account.host ? 'https://' + r.account.host : '';
+    const host = r.account && r.account.host ? r.account.host : '';
+    img.src = r.thumbnailUrl || (r.thumbnailPath ? hostFull + r.thumbnailPath : '');
     img.onerror = function () { this.style.display = 'none'; };
     const label = document.createElement('div');
     label.className = 'hs-tlabel';
@@ -1411,8 +1412,7 @@ function showGrid(items) {
     label.textContent = (i + 1) + '. ' + (r.name || 'video');
     const dur = document.createElement('div');
     dur.className = 'hs-tdur';
-    const host = r.account && r.account.host ? r.account.host : '';
-    // Show warning label for instances not on known-good whitelist
+    // Show ⚠ on thumbnails from instances not confirmed WebTorrent-compatible
     const hlsWarn = host && !r._archive && !WEBTORRENT_INSTANCES.includes(host) ? ' ⚠' : '';
     dur.textContent = fmtDur(r.duration) + (host ? ' · ' + host : '') + hlsWarn;
     if (hlsWarn) dur.title = 'Instance not confirmed WebTorrent-compatible — may show HLS error';
