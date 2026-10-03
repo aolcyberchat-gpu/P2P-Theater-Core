@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiveStream Seeder 0.01.01</title>
+<style>
+ body{font:14px/1.4 system-ui,sans-serif;background:#111;color:#eee;margin:0;padding:14px;max-width:760px}
+ h1{font-size:18px;margin:0 0 8px} .box{background:#1b1b1b;border:1px solid #333;border-radius:8px;padding:10px;margin:10px 0}
+ label{display:block;margin:6px 0 2px;color:#aaa;font-size:12px}
+ input[type=text],textarea{width:100%;box-sizing:border-box;background:#000;color:#eee;border:1px solid #444;border-radius:6px;padding:6px;font:12px monospace}
+ button{font-size:14px;padding:8px 12px;margin:4px 4px 0 0} code,pre{font:12px monospace;word-break:break-all;white-space:pre-wrap}
+ .big{font-size:22px;font-weight:bold} .ok{color:#6f6} .warn{color:#fc6}
+</style></head><body>
+<h1>HiveStream Seeder <span style="color:#888">0.01.01</span></h1>
+<div class="box">
+ <b>1.</b> Download the mp4 to this machine (e.g. <code>curl -L -o sahrrklr.mp4 https://u.pone.rs/sahrrklr.mp4</code>).<br>
+ <b>2.</b> Pick it here. It is hashed and seeded over WebRTC. <b>Keep this tab open and the screen awake</b> - viewers only get bytes while it is.<br>
+ <b>3.</b> Put the infohash into the CyTube script registry (or <code>!hs map &lt;mp4 url&gt; &lt;infohash&gt;</code>).
+ <input type="file" id="f" accept="video/mp4,.mp4,.m4v" style="margin-top:8px">
+ <label>Optional webseed URL (must send CORS + Range; leave empty for pure P2P)</label>
+ <input type="text" id="ws" placeholder="https://...">
+ <label>Trackers (one per line)</label>
+ <textarea id="tr" rows="3">wss://tracker.openwebtorrent.com
+wss://tracker.novage.com.ua
+wss://tracker.files.fm:7073/announce</textarea>
+</div>
+<div class="box" id="out" style="display:none">
+ <div>state: <b id="st">hashing...</b></div>
+ <div>infohash (put this in the registry):</div>
+ <div class="big" id="ih"></div>
+ <button id="cpih">Copy infohash</button><button id="cpmag">Copy magnet</button><button id="dl">Download .torrent</button>
+ <div style="margin-top:8px">viewers connected (webrtc): <b id="pe">0</b></div>
+ <div>uploaded: <b id="up">0</b> MB &nbsp; upload rate: <b id="ur">0</b> KB/s</div>
+ <div id="proof" class="ok"></div>
+ <div style="margin-top:6px;color:#aaa">peers:</div><pre id="pl"></pre>
+</div>
+<pre id="log" class="box" style="max-height:200px;overflow:auto;color:#9cf"></pre>
+<script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js"></script>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)}, T=null, lines=[];
+ function log(m){lines.push(new Date().toLocaleTimeString()+' '+m);if(lines.length>80)lines.shift();$('log').textContent=lines.join('\n');}
+ if(!window.WebTorrent){log('WebTorrent failed to load (offline / CDN blocked?)');return;}
+ var client=new WebTorrent({tracker:{rtcConfig:{iceServers:[
+   {urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.nextcloud.com:443'}]}}});
+ client.on('error',function(e){log('client error: '+(e&&e.message||e));});
+ var upPrev=0,upT=Date.now();
+ $('f').onchange=function(){
+   var file=$('f').files[0]; if(!file)return;
+   var trackers=$('tr').value.split(/\s+/).filter(Boolean), ws=$('ws').value.trim();
+   var opts={name:file.name,announce:trackers,pieceLength:1<<20}; if(ws)opts.urlList=[ws];
+   $('out').style.display='block'; $('st').textContent='hashing '+(file.size/1048576).toFixed(1)+' MB...';
+   log('seeding '+file.name);
+   client.seed(file,opts,function(t){
+     T=t; $('st').textContent='seeding'; $('ih').textContent=t.infoHash;
+     log('infohash '+t.infoHash+' (same file name + same piece size => same infohash on any machine)');
+     t.on('wire',function(w){log('wire '+w.type+' '+String(w.peerId||'').slice(0,14));});
+     t.on('warning',function(w){log('warn '+(w&&w.message||w));});
+     t.on('error',function(e){log('torrent error '+(e&&e.message||e));});
+   });
+ };
+ $('cpih').onclick=function(){if(T)copy(T.infoHash)};
+ $('cpmag').onclick=function(){if(T)copy(T.magnetURI)};
+ $('dl').onclick=function(){if(!T)return;var a=document.createElement('a');
+   a.href=URL.createObjectURL(new Blob([T.torrentFile],{type:'application/x-bittorrent'}));
+   a.download=T.name.replace(/\.[^.]+$/,'')+'.torrent';document.body.appendChild(a);a.click();a.remove();};
+ function copy(t){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(function(){log('copied')});else prompt('Copy:',t);}
+ setInterval(function(){
+   if(!T)return; var rtc=T.wires.filter(function(w){return w.type!=='webSeed'});
+   $('pe').textContent=rtc.length; $('up').textContent=(T.uploaded/1048576).toFixed(2);
+   var now=Date.now(); $('ur').textContent=((T.uploaded-upPrev)/1024/((now-upT)/1000)).toFixed(0); upPrev=T.uploaded; upT=now;
+   $('pl').textContent=rtc.map(function(w){return String(w.peerId||'?').slice(0,16)+'  up '+(w.uploaded/1048576).toFixed(2)+' MB'}).join('\n');
+   $('proof').textContent=T.uploaded>0?'UPLOAD PROOF: '+(T.uploaded/1048576).toFixed(2)+' MB sent to browsers':'';
+ },1000);
+ log('ready - pick the mp4');
+})();
+</script></body></html>
